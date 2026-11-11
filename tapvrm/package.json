@@ -1,0 +1,15 @@
+{
+  "name": "tapvrm-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/viewer.js --bundle --minify --format=esm --target=es2022 --outfile=web/app.js --legal-comments=none"
+  },
+  "dependencies": {
+    "@pixiv/three-vrm": "3.5.5",
+    "three": "0.185.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

@@ -1,3 +1,5 @@
+> **TapVRM** — 這個 fork 新增了 [`tapvrm/`](tapvrm/)：輕敲 MacBook，瀏覽器裡的 VRM 分身會即時反應，被敲會往後仰、會跟著筆電傾斜、還會講話，也可以換成自己的 `.vrm`。用法見 [tapvrm/README.md](tapvrm/README.md)。以下是原本的 spank 說明。
+
 <p align="center">
   <img src="doc/logo.png" alt="spank logo" width="200">
 </p>

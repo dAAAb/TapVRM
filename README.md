@@ -1,3 +1,5 @@
+> **TapVRM** — this fork adds [`tapvrm/`](tapvrm/): tap your MacBook and a VRM avatar in your browser reacts in real time (recoils, leans with the laptop, and talks). Bring your own `.vrm`. See [tapvrm/README.md](tapvrm/README.md) (Traditional Chinese). The original spank docs follow below.
+
 <p align="center">
   <img src="doc/logo.png" alt="spank logo" width="200">
 </p>

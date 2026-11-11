@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TapVRM</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23a4ecbb%22/%3E%3C/svg%3E">
+<style>
+:root{--bg:#071b23;--panel:#0f2932;--stage:#12333b;--text:#f2f5e9;--muted:#8fb0ab;--accent:#a4ecbb;--accent-ink:#11352c;--alt:#294954;--warn:#f6bd7a;--bad:#ff8f86;--line:#1d4450}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#eef3ef;--panel:#ffffff;--stage:#d7e6e2;--text:#0f2a2f;--muted:#567a75;--accent:#1f8a5b;--accent-ink:#ffffff;--alt:#dce8e5;--warn:#c27a1e;--bad:#c4423a;--line:#c9dad6}}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 "PingFang TC",system-ui,sans-serif}
+main{max-width:1320px;margin:auto;min-height:100vh;display:grid;grid-template-columns:1.15fr 1fr;gap:4%;align-items:center;padding:4vh 4vw}
+.stagebox{position:relative}
+canvas#stage{display:block;width:100%;height:76vh;border-radius:22px;background:var(--stage);touch-action:none}
+.name{font-size:14px;color:var(--muted);margin:.5em .3em}
+h1{font-size:clamp(28px,3.4vw,46px);letter-spacing:-.04em;line-height:1.1;margin:0 0 .4em}
+p{color:var(--muted);margin:.3em 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:12px 0}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.chip{font-size:13px;font-weight:650;padding:3px 10px;border-radius:99px;background:var(--alt);color:var(--text)}
+.chip.on{background:var(--accent);color:var(--accent-ink)}
+.chip.wait{background:var(--warn);color:#2b1a05}
+.chip.bad{background:var(--bad);color:#2b0907}
+.chip.on::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:6px;animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.25}}
+#hint{font-size:14px;margin:.4em 0 0}
+button,.file{background:var(--accent);color:var(--accent-ink);border:0;border-radius:9px;font:inherit;font-weight:650;padding:.5em .85em;cursor:pointer}
+.alt,.file{background:var(--alt);color:var(--text)}
+button:disabled{opacity:.45;cursor:default}
+.small{font-size:13px;padding:.35em .7em}
+canvas#wave{display:block;width:100%;height:92px;margin-top:10px;border-radius:8px;background:color-mix(in srgb,var(--stage) 60%,transparent)}
+.readouts{display:flex;gap:18px;font-size:13px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+.readouts b{color:var(--text);font-variant-numeric:tabular-nums;font-weight:600}
+label{font-size:15px}
+input[type=range]{width:min(300px,100%);accent-color:var(--accent)}
+.checks{display:flex;gap:16px;flex-wrap:wrap;font-size:14px;margin-top:8px;color:var(--muted)}
+.checks input{accent-color:var(--accent)}
+#event{font-size:15px;color:var(--text);border-left:3px solid var(--warn);padding:.4em .8em;margin:10px 0 6px}
+#log{list-style:none;margin:0;padding:0;font-size:13px;font-variant-numeric:tabular-nums}
+#log li{display:grid;grid-template-columns:5.5em 4.8em 5.5em 1fr;gap:6px;padding:3px 0;border-top:1px solid var(--line);color:var(--muted)}
+#log b{color:var(--text);font-weight:600}
+.hit{color:var(--accent)}.miss{color:var(--muted)}
+input[type=file]{display:none}
+.drop{position:fixed;inset:12px;border:3px dashed var(--accent);border-radius:24px;display:none;place-items:center;font-size:28px;font-weight:700;background:color-mix(in srgb,var(--bg) 70%,transparent);z-index:9;pointer-events:none}
+body.dragging .drop{display:grid}
+small{color:var(--muted);font-size:13px}
+.bubble{position:absolute;z-index:2;max-width:260px;transform:translate(0,-100%) scale(.6);transform-origin:0 100%;opacity:0;pointer-events:none;background:#fffdf6;color:#14262a;font-weight:700;font-size:19px;line-height:1.35;padding:10px 14px;border-radius:16px 16px 16px 4px;box-shadow:0 6px 20px rgba(0,0,0,.18);transition:opacity .25s,transform .25s cubic-bezier(.3,1.6,.5,1)}
+.bubble.show{opacity:1;transform:translate(0,-100%) scale(1)}
+#said{font-size:14px;color:var(--text);min-height:1.4em;margin:6px 0 0}
+#soundHint{font-size:13px;color:var(--warn)}
+@media(max-width:820px){main{display:flex;flex-direction:column;padding:16px;gap:8px}canvas#stage{height:52vh}}
+</style>
+</head>
+<body>
+<div class="drop">放開以載入這個 VRM</div>
+<main>
+  <section class="stagebox">
+    <div id="bubble" class="bubble" aria-live="polite"></div>
+    <canvas id="stage" aria-label="會對 MacBook 敲擊做出反應的 3D VRM 分身"></canvas>
+    <p id="model" class="name" aria-live="polite">正在準備 VRM…</p>
+  </section>
+  <section>
+    <h1>敲一下，分身知道嗎？</h1>
+    <p>輕敲這台 MacBook，加速度感測器的訊號會直接傳給你的 VRM 分身。</p>
+
+    <div class="card">
+      <div class="row">
+        <strong>感測器</strong><span id="chip" class="chip">未連接</span>
+        <button id="connect" class="small" hidden>連接感測器</button>
+        <span style="flex:1"></span>
+        <small>回應 <b id="count">0</b> 次</small>
+      </div>
+      <p id="hint"></p>
+      <canvas id="wave" aria-label="即時震動波形，虛線是觸發門檻"></canvas>
+      <div class="readouts" id="readouts" hidden>
+        <span>震動 <b id="dynVal">—</b></span>
+        <span>傾斜 左右/前後 <b id="tiltVal">—</b></span>
+        <span>螢幕角度 <b id="lidVal">—</b></span>
+        <button id="calibrate" class="alt small">以目前姿勢為水平</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <label for="gate">觸發門檻　<b id="value">0.05</b> g</label><br>
+      <input id="gate" type="range" min="0.01" max="0.35" step="0.01" value="0.05">
+      <div class="checks">
+        <label><input type="checkbox" id="tilt" checked> 跟著筆電傾斜</label>
+        <label><input type="checkbox" id="useDir" checked> 依敲擊方向歪頭</label>
+        <label><input type="checkbox" id="talk" checked> 會講話</label>
+        <label><input type="checkbox" id="voice" checked> 唸出聲音</label>
+      </div>
+      <p id="said"></p>
+      <p id="soundHint" hidden>瀏覽器規定要先點一下頁面，分身才能出聲。</p>
+      <p id="event" aria-live="polite">等待事件</p>
+      <ul id="log"></ul>
+    </div>
+
+    <div class="row">
+      <button id="tap" disabled>模擬輕拍</button>
+      <button id="shake" class="alt" disabled>模擬較大振動</button>
+      <label class="file" for="avatar">換成自己的 VRM</label>
+      <input type="file" accept=".vrm" id="avatar">
+      <button id="reset" class="alt" hidden>換回內建角色</button>
+      <button id="save" class="alt" disabled>儲存實驗畫面</button>
+      <button id="quit" class="alt">結束 TapVRM</button>
+    </div>
+    <p><small>也可以直接把 .vrm 拖進這個視窗。模型只在你的瀏覽器裡讀取，不會上傳；下次打開會記得上次用的角色。</small></p>
+  </section>
+</main>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
