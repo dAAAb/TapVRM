@@ -20,6 +20,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"math"
 	"net"
@@ -553,6 +554,42 @@ func runServer(args []string) error {
 		default:
 		}
 	})
+	// Speak with the macOS voice (no browser autoplay rules). A new line interrupts the previous one;
+	// the request returns when speech ends so the page can stop the mouth animation.
+	var sayMu sync.Mutex
+	var sayCmd *exec.Cmd
+	voice := pickVoice()
+	mux.HandleFunc("/api/say", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.Header.Get("X-TapVRM") != "1" {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		var req struct {
+			Text string `json:"text"`
+		}
+		if json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&req) != nil || strings.TrimSpace(req.Text) == "" {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		args := []string{"-r", "215"}
+		if voice != "" {
+			args = append(args, "-v", voice)
+		}
+		cmd := exec.Command("say", append(args, "--", req.Text)...)
+		sayMu.Lock()
+		if sayCmd != nil && sayCmd.Process != nil {
+			sayCmd.Process.Kill()
+		}
+		sayCmd = cmd
+		err := cmd.Start()
+		sayMu.Unlock()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		cmd.Wait()
+		w.WriteHeader(http.StatusNoContent)
+	})
 	mux.HandleFunc("/api/sensor/start", func(w http.ResponseWriter, r *http.Request) {
 		// Custom header ⇒ cross-site pages can't trigger this without a CORS preflight we never answer.
 		if r.Method != http.MethodPost || r.Header.Get("X-TapVRM") != "1" {
@@ -631,6 +668,37 @@ func runReplay(path string, h *hub) {
 			h.broadcast(b)
 		}
 	}
+}
+
+// pickVoice prefers Meijia (zh-TW), then any zh_TW voice, then any Chinese voice.
+func pickVoice() string {
+	out, err := exec.Command("say", "-v", "?").Output()
+	if err != nil {
+		return ""
+	}
+	var tw, zh string
+	for _, line := range strings.Split(string(out), "\n") {
+		f := strings.Fields(line)
+		if len(f) < 2 {
+			continue
+		}
+		name := f[0]
+		if i := strings.Index(line, " ("); i > 0 {
+			name = strings.TrimSpace(line[:i])
+		}
+		switch {
+		case strings.Contains(line, "zh_TW") && strings.HasPrefix(name, "Meijia"):
+			return name
+		case strings.Contains(line, "zh_TW") && tw == "":
+			tw = name
+		case strings.Contains(line, "zh_") && zh == "":
+			zh = name
+		}
+	}
+	if tw != "" {
+		return tw
+	}
+	return zh
 }
 
 func noCache(next http.Handler) http.Handler {

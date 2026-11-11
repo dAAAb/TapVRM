@@ -161,9 +161,11 @@ const talker = createTalker({
   isOn: () => $('talk').checked && !!vrm,
   wantsVoice: () => $('voice').checked,
   onSpeak: (kind, text) => { $('said').textContent = '「' + text + '」'; },
+  serverVoice: () => streamOpen,
 });
+let streamOpen = false;
 function updateSoundHint() {
-  $('soundHint').hidden = !($('voice').checked && 'speechSynthesis' in window && navigator.userActivation && !navigator.userActivation.hasBeenActive);
+  $('soundHint').hidden = streamOpen || !($('voice').checked && 'speechSynthesis' in window && navigator.userActivation && !navigator.userActivation.hasBeenActive);
 }
 addEventListener('pointerdown', () => setTimeout(updateSoundHint, 0), { once: true });
 addEventListener('keydown', () => setTimeout(updateSoundHint, 0), { once: true });
@@ -332,7 +334,8 @@ function connectStream() {
     else if (m.t === 'tap') react(m.amp, m.src === 'replay' ? '回放' : '實機', m.dir);
     else if (m.t === 'status') setState(m.state, m.msg);
   };
-  es.onerror = () => setState('offline');
+  es.onopen = () => { streamOpen = true; updateSoundHint(); };
+  es.onerror = () => { streamOpen = false; setState('offline'); updateSoundHint(); };
 }
 $('quit').onclick = async () => {
   try { await fetch('/api/quit', { method: 'POST', headers: { 'X-TapVRM': '1' } }); } catch {}

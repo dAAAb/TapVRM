@@ -22,7 +22,8 @@ const COOLDOWN = {
 // Taps interrupt anything; ambient remarks wait for silence.
 const URGENT = new Set(['strong', 'medium', 'light', 'combo', 'tiltBig']);
 
-export function createTalker({ bubble, isOn, wantsVoice, onSpeak }) {
+export function createTalker({ bubble, isOn, wantsVoice, onSpeak, serverVoice }) {
+  let lineId = 0;
   const lastAt = {}, lastLine = {};
   let speakingUntil = 0, voice = null, speaking = false, quietSince = performance.now();
 
@@ -51,7 +52,15 @@ export function createTalker({ bubble, isOn, wantsVoice, onSpeak }) {
     speaking = true;
     onSpeak?.(kind, text);
 
-    if (wantsVoice() && 'speechSynthesis' in window && navigator.userActivation?.hasBeenActive !== false) {
+    const id = ++lineId;
+    const done = () => { if (id === lineId) speakingUntil = Math.min(speakingUntil, performance.now() / 1000 + 0.15); };
+    if (wantsVoice() && serverVoice?.()) {
+      // macOS `say` on the local server: works in any browser, no click needed.
+      speakingUntil = now + est * 2; // until the server says it finished
+      fetch('/api/say', { method: 'POST', headers: { 'X-TapVRM': '1', 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) })
+        .then(r => { if (!r.ok) throw 0; done(); })
+        .catch(() => { if (id === lineId) speakingUntil = now + est; });
+    } else if (wantsVoice() && 'speechSynthesis' in window) {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       if (voice) u.voice = voice;
